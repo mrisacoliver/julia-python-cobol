@@ -1,0 +1,67 @@
+using Dates
+using Decimals # Para precisão financeira exata (equivalente ao decimal.Decimal em Python)
+
+# =====================================================================
+# 1. Estruturas de Dados Tipadas (Substituindo o Pydantic do Python)
+# =====================================================================
+
+abstract type DocumentoCliente end
+
+struct DocumentoCPF <: DocumentoCliente
+    numero::String # PIC 9(11)
+end
+
+struct DocumentoCNPJ <: DocumentoCliente
+    numero::String # PIC 9(14)
+end
+
+struct Endereco
+    rua::String    # PIC X(25)
+    cep::String    # PIC 9(08)
+end
+
+# Estrutura equivalente ao COPYBOOK com OCCURS e REDEFINES
+struct ClienteRegistro
+    id::Int64                       # PIC 9(08)
+    nome::String                    # PIC X(30)
+    enderecos::Vector{Endereco}     # OCCURS 2 TIMES
+    documento::DocumentoCliente     # REDEFINES CLI-DOCUMENTO
+end
+
+# =====================================================================
+# 2. Regra de Negócio usando Multiple Dispatch (Recurso Poderoso de Julia)
+# =====================================================================
+
+# Comportamento padrão para pessoas físicas (CPF)
+function calcular_limite_credito(cliente::ClienteRegistro, doc::DocumentoCPF, renda::Decimal)
+    base = renda * decimal("2.5")
+    return base
+end
+
+# Comportamento diferenciado para pessoas jurídicas (CNPJ)
+function calcular_limite_credito(cliente::ClienteRegistro, doc::DocumentoCNPJ, renda::Decimal)
+    base = renda * decimal("5.0")
+    return base
+end
+
+# Função de entrada principal que dispara a versão correta
+function processar_cliente(cliente::ClienteRegistro, renda::Decimal)
+    return calcular_limite_credito(cliente, cliente.documento, renda)
+end
+
+# =====================================================================
+# 3. Exemplo de Execução
+# =====================================================================
+
+# Criando um registro simulado parseado do COBOL
+end1 = Endereco("Rua das Flores, 123", "01234567")
+end2 = Endereco("Av. Central, 456", "87654321")
+
+doc_cpf = DocumentoCPF("12345678901")
+cliente_teste = ClienteRegistro(1001, "ROBERTO SILVA", [end1, end2], doc_cpf)
+
+renda_mensal = decimal("5000.00")
+limite = processar_cliente(cliente_teste, renda_mensal)
+
+println("Cliente: ", cliente_teste.nome)
+println("Limite de Crédito Calculado em Julia: R\$ ", limite)
